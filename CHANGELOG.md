@@ -10,11 +10,28 @@ part of it.
 
 ## [Unreleased]
 
+### Added
+
+- Devcontainer (`.devcontainer/`) with the same tool versions as CI: Go 1.27,
+  golangci-lint v2.15.0, shellcheck v0.11.0, make, gh, and podman so that
+  `make e2e` runs Jenkins inside it. Set up for podman; see
+  `.devcontainer/README.md` for Docker.
+- `PODMAN` setting for `test/jenkins/verify.sh` (for example `sudo podman`).
+
+### Changed
+
+- `make lint` and the CI Lint job run a pinned, checksum-verified shellcheck
+  (`scripts/install-shellcheck.sh`) on the repository's scripts and on the
+  workflow's `run:` scripts. The CI Lint job also checks `CHANGELOG.md` now;
+  before, both checks ran only in a local `make lint`.
+
 ### Fixed
 
 - Release tags made by `make release` now have a `jenkinsfy vX.Y.Z` subject
   line and keep the changelog's `###` headings. Before, git stripped the
   headings as comments and the first bullet became the tag's title on GitHub.
+- The release job's version check no longer runs a glob as a command name
+  (shellcheck SC2211).
 
 ## [0.1.0] - 2026-11-26
 
