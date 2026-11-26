@@ -10,6 +10,14 @@ part of it.
 
 ## [Unreleased]
 
+### Fixed
+
+- Release tags made by `make release` now have a `jenkinsfy vX.Y.Z` subject
+  line and keep the changelog's `###` headings. Before, git stripped the
+  headings as comments and the first bullet became the tag's title on GitHub.
+
+## [0.1.0] - 2026-11-26
+
 ### Added
 
 - `jenkinsfy` command that converts a GitHub Actions workflow into a
@@ -30,4 +38,5 @@ part of it.
   binaries, Jenkins end-to-end check, tag-driven releases), and the
   repository `Jenkinsfile` generated from it.
 
-[Unreleased]: https://github.com/pauloaffonsocamposjr/jenkinsfy/compare/a959b1b...HEAD
+[Unreleased]: https://github.com/pauloaffonsocamposjr/jenkinsfy/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/pauloaffonsocamposjr/jenkinsfy/releases/tag/v0.1.0

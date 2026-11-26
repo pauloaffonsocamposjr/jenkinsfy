@@ -24,7 +24,14 @@ scripts/changelog.sh cut "$v"
 scripts/changelog.sh check >/dev/null
 git add CHANGELOG.md
 git commit -q -m "Release $tag"
-scripts/changelog.sh notes "$v" | git tag -a "$tag" -F -
+# The first line is the tag's subject, which GitHub shows as its title.
+# Verbatim cleanup keeps the notes' "### Added" headings, which git would
+# otherwise strip as comments.
+{
+	echo "jenkinsfy $tag"
+	echo
+	scripts/changelog.sh notes "$v"
+} | git tag -a "$tag" --cleanup=verbatim -F -
 
 echo "Created commit and tag $tag. Publish with:"
 echo "  git push origin $branch $tag"
