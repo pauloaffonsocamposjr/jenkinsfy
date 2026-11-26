@@ -44,8 +44,12 @@ jobs:
         run: make golangci
       - name: go.mod is tidy
         run: make tidy-check
+      - name: shellcheck
+        run: make shellcheck
       - name: actionlint
         run: make actionlint
+      - name: CHANGELOG.md
+        run: make changelog-check
       - name: Jenkinsfile matches this workflow
         run: make jenkinsfile-check
 

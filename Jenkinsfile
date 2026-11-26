@@ -34,8 +34,12 @@ pipeline {
                 sh 'make golangci'
                 // go.mod is tidy
                 sh 'make tidy-check'
+                // shellcheck
+                sh 'make shellcheck'
                 // actionlint
                 sh 'make actionlint'
+                // CHANGELOG.md
+                sh 'make changelog-check'
                 // Jenkinsfile matches this workflow
                 sh 'make jenkinsfile-check'
             }
