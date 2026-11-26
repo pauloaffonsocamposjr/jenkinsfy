@@ -11,12 +11,12 @@ ACTIONLINT  ?= github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
 WORKFLOW    := .github/workflows/ci.yml
 JENKINSFY   := $(GO) run . -q -label ubuntu-latest=linux $(WORKFLOW)
 
-.PHONY: all lint fmt-check vet golangci tidy-check actionlint jenkinsfile jenkinsfile-check \
-	test cover dist e2e clean
+.PHONY: all lint fmt-check vet golangci tidy-check actionlint changelog-check jenkinsfile \
+	jenkinsfile-check test cover dist e2e release release-notes clean
 
 all: lint cover
 
-lint: fmt-check vet golangci tidy-check actionlint jenkinsfile-check
+lint: fmt-check vet golangci tidy-check actionlint changelog-check jenkinsfile-check
 
 fmt-check:
 	@out=$$(gofmt -l .); if [ -n "$$out" ]; then echo "gofmt needed on:"; echo "$$out"; exit 1; fi
@@ -32,6 +32,10 @@ tidy-check:
 
 actionlint:
 	$(GO) run $(ACTIONLINT) -color
+
+changelog-check:
+	scripts/changelog_test.sh >/dev/null
+	scripts/changelog.sh check
 
 jenkinsfile:
 	$(JENKINSFY) > Jenkinsfile
@@ -60,6 +64,15 @@ dist:
 
 e2e:
 	test/jenkins/verify.sh all
+
+# make release V=0.2.0: cut the changelog, commit and tag (nothing is pushed).
+release:
+	@test -n "$(V)" || { echo "usage: make release V=X.Y.Z"; exit 1; }
+	scripts/release.sh $(V)
+
+# make release-notes V=0.2.0: print that version's changelog section.
+release-notes:
+	@scripts/changelog.sh notes $(V)
 
 clean:
 	rm -rf dist coverage.out coverage.html

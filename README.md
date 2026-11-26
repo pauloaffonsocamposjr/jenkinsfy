@@ -88,6 +88,27 @@ make jenkinsfile # regenerate ./Jenkinsfile after editing .github/workflows/ci.y
 | Jenkins end-to-end | `make e2e`: lints every generated Jenkinsfile and builds the sample on Jenkins in podman |
 | Release | for `v*` tags, publishes the binaries as a GitHub release |
 
+### Versioning and releases
+
+jenkinsfy follows [Semantic Versioning](https://semver.org). Releases are
+`vX.Y.Z` git tags (pre-releases look like `v1.0.0-rc.1`), and changes are
+recorded in [CHANGELOG.md](CHANGELOG.md) using the
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
+
+1. Add each change under `## [Unreleased]` in `CHANGELOG.md`, in the same PR.
+2. To release, run `make release V=0.2.0` on an up-to-date `main` branch. This
+   moves the Unreleased entries into `## [0.2.0] - <today>`, updates the
+   compare links, commits `Release v0.2.0`, and creates an annotated tag. It
+   doesn't push anything.
+3. Push with `git push origin main v0.2.0`. CI builds the binaries, checks
+   that they report `v0.2.0`, and publishes a GitHub release whose notes are
+   that changelog section (marked as a pre-release when the version has a
+   `-`). Tags without a changelog entry fail the release job.
+
+`jenkinsfy -version` prints the release version. It's stamped into release
+binaries and read from module info for `go install ...@vX.Y.Z`, and is `dev`
+for local builds.
+
 The repository's [`Jenkinsfile`](Jenkinsfile) is that same workflow converted
 by jenkinsfy (`make jenkinsfile`). The lint job fails if it gets out of date.
 To run it, use a Multibranch Pipeline and set up:

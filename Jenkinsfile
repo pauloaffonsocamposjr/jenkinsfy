@@ -142,9 +142,24 @@ pipeline {
                 dir('dist') {
                     unstash 'dist'
                 }
+                // Release notes from CHANGELOG.md
+                sh 'make release-notes V="${BRANCH_NAME}" > release-notes.md'
+                // Check binaries report the tag
+                sh '''
+                    chmod +x dist/jenkinsfy_* # artifacts do not keep file modes
+                    out=$(./dist/jenkinsfy_*_linux_amd64 -version)
+                    echo "$out"
+                    [ "$out" = "jenkinsfy ${BRANCH_NAME}" ]
+                '''
                 // Publish GitHub release
                 withCredentials([string(credentialsId: 'GITHUB_TOKEN', variable: 'GH_TOKEN')]) {
-                    sh 'gh release create "${BRANCH_NAME}" dist/* --title "jenkinsfy ${BRANCH_NAME}" --generate-notes --verify-tag'
+                    sh '''
+                        prerelease=""
+                        case "${BRANCH_NAME}" in *-*) prerelease="--prerelease" ;; esac
+                        gh release create "${BRANCH_NAME}" dist/* \\
+                          --title "jenkinsfy ${BRANCH_NAME}" \\
+                          --notes-file release-notes.md --verify-tag $prerelease
+                    '''
                 }
             }
         }

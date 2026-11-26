@@ -133,10 +133,21 @@ jobs:
         with:
           name: dist
           path: dist
+      - name: Release notes from CHANGELOG.md
+        # Fails for tags that are not semantic versions or have no changelog entry.
+        run: make release-notes V="${{ github.ref_name }}" > release-notes.md
+      - name: Check binaries report the tag
+        run: |
+          chmod +x dist/jenkinsfy_* # artifacts do not keep file modes
+          out=$(./dist/jenkinsfy_*_linux_amd64 -version)
+          echo "$out"
+          [ "$out" = "jenkinsfy ${{ github.ref_name }}" ]
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: >-
-          gh release create "${{ github.ref_name }}" dist/*
-          --title "jenkinsfy ${{ github.ref_name }}"
-          --generate-notes --verify-tag
+        run: |
+          prerelease=""
+          case "${{ github.ref_name }}" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "${{ github.ref_name }}" dist/* \
+            --title "jenkinsfy ${{ github.ref_name }}" \
+            --notes-file release-notes.md --verify-tag $prerelease

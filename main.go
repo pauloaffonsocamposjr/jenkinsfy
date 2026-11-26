@@ -16,14 +16,28 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime/debug"
 	"strings"
 
 	"github.com/pauloaffonsocamposjr/jenkinsfy/internal/convert"
 	"github.com/pauloaffonsocamposjr/jenkinsfy/internal/workflow"
 )
 
-// version is set at build time with -ldflags "-X main.version=...".
-var version = "dev"
+// version is set at release build time with -ldflags "-X main.version=...".
+// When empty, the module version recorded by `go install module@version` is
+// used, and "dev" for local builds.
+var version = ""
+
+// resolveVersion returns the version to report for this binary.
+func resolveVersion(ldflags string, info *debug.BuildInfo, ok bool) string {
+	if ldflags != "" {
+		return ldflags
+	}
+	if ok && info != nil && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+	return "dev"
+}
 
 type labelFlag map[string]string
 
@@ -63,7 +77,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return 1
 	}
 	if *showVersion {
-		fmt.Fprintln(stdout, "jenkinsfy", version)
+		info, ok := debug.ReadBuildInfo()
+		fmt.Fprintln(stdout, "jenkinsfy", resolveVersion(version, info, ok))
 		return 0
 	}
 	if fs.NArg() > 1 {
