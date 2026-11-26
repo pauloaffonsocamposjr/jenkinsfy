@@ -1,0 +1,83 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        default: staging
+        options: [dev, staging, prod]
+      dry-run:
+        type: boolean
+        default: true
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  APP: demo
+  REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make lint
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node-version: [18, 20]
+        exclude:
+          - os: windows-latest
+            node-version: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Test
+        run: |
+          npm ci
+          npm test -- --node ${{ matrix.node-version }}
+  build:
+    needs: [lint, test]
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 30
+    env:
+      VERSION: 1.0.${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        working-directory: app
+        run: make build VERSION=$VERSION SHA=${{ github.sha }}
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: app/dist/
+      - name: Notify failure
+        if: failure()
+        run: ./notify.sh "${{ github.ref_name }} failed"
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main' && inputs.dry-run != true
+    runs-on: ubuntu-latest
+    container: alpine:3.20
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: out
+      - name: Deploy
+        if: ${{ startsWith(github.ref_name, 'release/') || github.event_name == 'workflow_dispatch' }}
+        shell: bash
+        run: |
+          ./deploy.sh --env "${{ inputs.environment }}" --token "$REGISTRY_TOKEN"
+          echo "mode: ${{ inputs.dry-run && 'dry' || 'live' }}"

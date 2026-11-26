@@ -1,0 +1,4 @@
+test/jenkins/last-console.txt
+/dist/
+/coverage.out
+/coverage.html
