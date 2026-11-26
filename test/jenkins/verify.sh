@@ -7,7 +7,8 @@
 #   test/jenkins/verify.sh all    up + lint + run
 #   test/jenkins/verify.sh down   stop and remove the container (keeps the data volume)
 #
-# Environment: JENKINS_PORT (8080), JENKINS_USER/JENKINS_PASSWORD (admin/admin).
+# Environment: JENKINS_PORT (8080), JENKINS_USER/JENKINS_PASSWORD (admin/admin),
+# PODMAN (the podman command, e.g. "sudo podman" in the devcontainer).
 set -euo pipefail
 
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -20,6 +21,9 @@ USER_=${JENKINS_USER:-admin}
 PASS=${JENKINS_PASSWORD:-admin}
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
+
+read -ra PODMAN_CMD <<<"${PODMAN:-podman}"
+pm() { "${PODMAN_CMD[@]}" "$@"; }
 
 log() { printf '\033[1m==> %s\033[0m\n' "$*"; }
 
@@ -46,12 +50,12 @@ wait_ready() {
 
 cmd_up() {
 	log "Building $IMAGE"
-	podman build -q -t "$IMAGE" -f "$HERE/Containerfile" "$HERE" >/dev/null
-	if podman container exists "$NAME"; then
-		podman start "$NAME" >/dev/null
+	pm build -q -t "$IMAGE" -f "$HERE/Containerfile" "$HERE" >/dev/null
+	if pm container exists "$NAME"; then
+		pm start "$NAME" >/dev/null
 	else
 		log "Starting $NAME on $URL"
-		podman run -d --name "$NAME" -p "127.0.0.1:$PORT:8080" \
+		pm run -d --name "$NAME" -p "127.0.0.1:$PORT:8080" \
 			-v jenkinsfy-jenkins-home:/var/jenkins_home \
 			-e JENKINS_ADMIN_USER="$USER_" -e JENKINS_ADMIN_PASSWORD="$PASS" \
 			-e JENKINS_DUMMY_SECRETS=REGISTRY_TOKEN,NPM_TOKEN,DEPLOY_KEY,API_TOKEN,OTHER \
@@ -62,7 +66,7 @@ cmd_up() {
 }
 
 cmd_down() {
-	podman rm -f "$NAME" >/dev/null 2>&1 || true
+	pm rm -f "$NAME" >/dev/null 2>&1 || true
 	log "Removed $NAME (data volume jenkinsfy-jenkins-home kept; 'podman volume rm' it to reset)"
 }
 
@@ -98,8 +102,8 @@ cmd_run() {
 	(cd "$ROOT" && go run . -label ubuntu-latest=built-in -o "$WORK/Jenkinsfile" "$workflow")
 
 	log "Publishing it to a git repository inside the container"
-	podman cp "$WORK/Jenkinsfile" "$NAME:/tmp/Jenkinsfile"
-	podman exec "$NAME" bash -euc '
+	pm cp "$WORK/Jenkinsfile" "$NAME:/tmp/Jenkinsfile"
+	pm exec "$NAME" bash -euc '
 		rm -rf /var/jenkins_home/jenkinsfy-sample.git /tmp/sample
 		git init -q --bare -b main /var/jenkins_home/jenkinsfy-sample.git
 		git init -q -b main /tmp/sample && cd /tmp/sample

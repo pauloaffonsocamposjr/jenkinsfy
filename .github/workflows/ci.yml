@@ -44,8 +44,12 @@ jobs:
         run: make golangci
       - name: go.mod is tidy
         run: make tidy-check
+      - name: shellcheck
+        run: make shellcheck
       - name: actionlint
         run: make actionlint
+      - name: CHANGELOG.md
+        run: make changelog-check
       - name: Jenkinsfile matches this workflow
         run: make jenkinsfile-check
 
@@ -139,7 +143,8 @@ jobs:
       - name: Check binaries report the tag
         run: |
           chmod +x dist/jenkinsfy_* # artifacts do not keep file modes
-          out=$(./dist/jenkinsfy_*_linux_amd64 -version)
+          set -- dist/jenkinsfy_*_linux_amd64
+          out=$("$1" -version)
           echo "$out"
           [ "$out" = "jenkinsfy ${{ github.ref_name }}" ]
       - name: Publish GitHub release

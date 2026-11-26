@@ -10,6 +10,12 @@ part of it.
 
 ## [Unreleased]
 
+### Fixed
+
+- Release tags made by `make release` now have a `jenkinsfy vX.Y.Z` subject
+  line and keep the changelog's `###` headings. Before, git stripped the
+  headings as comments and the first bullet became the tag's title on GitHub.
+
 ## [0.1.0] - 2026-11-26
 
 ### Added
