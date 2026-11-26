@@ -34,8 +34,12 @@ pipeline {
                 sh 'make golangci'
                 // go.mod is tidy
                 sh 'make tidy-check'
+                // shellcheck
+                sh 'make shellcheck'
                 // actionlint
                 sh 'make actionlint'
+                // CHANGELOG.md
+                sh 'make changelog-check'
                 // Jenkinsfile matches this workflow
                 sh 'make jenkinsfile-check'
             }
@@ -147,7 +151,8 @@ pipeline {
                 // Check binaries report the tag
                 sh '''
                     chmod +x dist/jenkinsfy_* # artifacts do not keep file modes
-                    out=$(./dist/jenkinsfy_*_linux_amd64 -version)
+                    set -- dist/jenkinsfy_*_linux_amd64
+                    out=$("$1" -version)
                     echo "$out"
                     [ "$out" = "jenkinsfy ${BRANCH_NAME}" ]
                 '''
