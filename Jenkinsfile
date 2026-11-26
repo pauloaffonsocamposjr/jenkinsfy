@@ -147,7 +147,8 @@ pipeline {
                 // Check binaries report the tag
                 sh '''
                     chmod +x dist/jenkinsfy_* # artifacts do not keep file modes
-                    out=$(./dist/jenkinsfy_*_linux_amd64 -version)
+                    set -- dist/jenkinsfy_*_linux_amd64
+                    out=$("$1" -version)
                     echo "$out"
                     [ "$out" = "jenkinsfy ${BRANCH_NAME}" ]
                 '''

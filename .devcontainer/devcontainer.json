@@ -1,0 +1,67 @@
+// Development container for jenkinsfy: Go 1.27, golangci-lint v2.15.0, make,
+// shellcheck, gh, and podman for `make e2e`. Tool versions match CI.
+// Written for podman (VS Code setting "dev.containers.dockerPath": "podman").
+// With Docker, remove "--userns=keep-id" from runArgs. See .devcontainer/README.md.
+{
+  "name": "jenkinsfy",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "runArgs": [
+    // Nested containers for the Jenkins end-to-end check.
+    "--privileged",
+    // Rootless podman: keep the host UID so files in the workspace stay yours.
+    "--userns=keep-id"
+  ],
+  "containerUser": "vscode",
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": false,
+  "containerEnv": {
+    // test/jenkins/verify.sh runs the inner podman as root (see Dockerfile).
+    "PODMAN": "sudo podman",
+    "GOTOOLCHAIN": "local"
+  },
+  "mounts": [
+    // Keep the Jenkins image and its plugins between container rebuilds.
+    "source=jenkinsfy-devcontainer-podman,target=/var/lib/containers,type=volume"
+  ],
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "forwardPorts": [8080],
+  "portsAttributes": {
+    "8080": {
+      "label": "Jenkins (make e2e)",
+      "onAutoForward": "notify"
+    }
+  },
+  "postCreateCommand": "go mod download",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "github.vscode-github-actions",
+        "redhat.vscode-yaml",
+        "timonwong.shellcheck",
+        "ms-vscode.makefile-tools"
+      ],
+      "settings": {
+        "go.toolsManagement.autoUpdate": false,
+        "go.lintTool": "golangci-lint-v2",
+        "go.lintOnSave": "package",
+        "gopls": {
+          "formatting.gofumpt": false
+        },
+        "[go]": {
+          "editor.formatOnSave": true,
+          "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+          }
+        },
+        "files.associations": {
+          "Jenkinsfile": "groovy"
+        }
+      }
+    }
+  }
+}
