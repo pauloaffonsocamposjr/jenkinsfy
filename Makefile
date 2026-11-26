@@ -7,16 +7,19 @@ LDFLAGS     := -s -w -X main.version=$(VERSION)
 PLATFORMS   ?= linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 COVERAGE_MIN ?= 80
 ACTIONLINT  ?= github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+# Pinned shellcheck, installed into .tools/ on first use (checksum-verified).
+INSTALL_SHELLCHECK := scripts/install-shellcheck.sh
+SHELL_SCRIPTS := scripts/*.sh test/jenkins/verify.sh
 # The Jenkinsfile in the repository is generated from the CI workflow.
 WORKFLOW    := .github/workflows/ci.yml
 JENKINSFY   := $(GO) run . -q -label ubuntu-latest=linux $(WORKFLOW)
 
-.PHONY: all lint fmt-check vet golangci tidy-check actionlint changelog-check jenkinsfile \
+.PHONY: all lint fmt-check vet golangci tidy-check actionlint shellcheck changelog-check jenkinsfile \
 	jenkinsfile-check test cover dist e2e release release-notes clean
 
 all: lint cover
 
-lint: fmt-check vet golangci tidy-check actionlint changelog-check jenkinsfile-check
+lint: fmt-check vet golangci tidy-check shellcheck actionlint changelog-check jenkinsfile-check
 
 fmt-check:
 	@out=$$(gofmt -l .); if [ -n "$$out" ]; then echo "gofmt needed on:"; echo "$$out"; exit 1; fi
@@ -30,8 +33,12 @@ golangci:
 tidy-check:
 	$(GO) mod tidy -diff
 
+# actionlint also runs shellcheck on every workflow `run:` script.
 actionlint:
-	$(GO) run $(ACTIONLINT) -color
+	sc=$$($(INSTALL_SHELLCHECK)) && $(GO) run $(ACTIONLINT) -color -shellcheck="$$sc"
+
+shellcheck:
+	sc=$$($(INSTALL_SHELLCHECK)) && "$$sc" $(SHELL_SCRIPTS)
 
 changelog-check:
 	scripts/changelog_test.sh >/dev/null
@@ -75,4 +82,4 @@ release-notes:
 	@scripts/changelog.sh notes $(V)
 
 clean:
-	rm -rf dist coverage.out coverage.html
+	rm -rf dist coverage.out coverage.html .tools

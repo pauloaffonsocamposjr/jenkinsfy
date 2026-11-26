@@ -73,7 +73,7 @@ too.
 ```sh
 go test ./...
 go test ./internal/convert -update   # regenerate golden Jenkinsfiles in testdata/
-make lint        # gofmt, go vet, golangci-lint, go mod tidy, actionlint, Jenkinsfile freshness
+make lint        # gofmt, go vet, golangci-lint, go mod tidy, shellcheck, actionlint, Jenkinsfile freshness
 make cover       # tests with -race; fails below 80% coverage; writes coverage.html
 make dist        # cross-compile release binaries and SHA256SUMS into dist/
 make jenkinsfile # regenerate ./Jenkinsfile after editing .github/workflows/ci.yml

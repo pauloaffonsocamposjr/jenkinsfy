@@ -1,5 +1,5 @@
 // Development container for jenkinsfy: Go 1.27, golangci-lint v2.15.0, make,
-// shellcheck, gh, and podman for `make e2e`. Tool versions match CI.
+// shellcheck v0.11.0, gh, and podman for `make e2e`. Tool versions match CI.
 // Written for podman (VS Code setting "dev.containers.dockerPath": "podman").
 // With Docker, remove "--userns=keep-id" from runArgs. See .devcontainer/README.md.
 {
@@ -35,7 +35,8 @@
       "onAutoForward": "notify"
     }
   },
-  "postCreateCommand": "go mod download",
+  // Fetch modules and the pinned shellcheck that make lint uses.
+  "postCreateCommand": "go mod download && scripts/install-shellcheck.sh",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -49,6 +50,7 @@
         "go.toolsManagement.autoUpdate": false,
         "go.lintTool": "golangci-lint-v2",
         "go.lintOnSave": "package",
+        "shellcheck.executablePath": "${containerWorkspaceFolder}/.tools/shellcheck-v0.11.0/shellcheck",
         "gopls": {
           "formatting.gofumpt": false
         },

@@ -7,11 +7,10 @@ COPY --from=docker.io/golangci/golangci-lint:v2.15.0 /usr/bin/golangci-lint /go/
 
 # podman runs the throwaway Jenkins used by `make e2e` inside this container
 # (nested containers, so the devcontainer runs with --privileged).
-# shellcheck covers the scripts under scripts/ and test/.
 RUN apt-get update \
     && export DEBIAN_FRONTEND=noninteractive \
     && apt-get install -y --no-install-recommends \
-        podman fuse-overlayfs slirp4netns uidmap shellcheck \
+        podman fuse-overlayfs slirp4netns uidmap \
     && rm -rf /var/lib/apt/lists/*
 
 # Inside a rootless container there are too few user IDs for a nested

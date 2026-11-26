@@ -8,7 +8,7 @@ A development environment for jenkinsfy with the same tool versions as CI:
 | golangci-lint | v2.15.0 | copied from the `golangci/golangci-lint:v2.15.0` image CI uses |
 | make, git, gopls | from the base image | |
 | podman | 4.3 (Debian) | runs the Jenkins used by `make e2e` |
-| shellcheck | 0.9 (Debian) | also used by actionlint in `make lint` |
+| shellcheck | v0.11.0 | pinned and checksum-verified by `scripts/install-shellcheck.sh`, the same as CI |
 | gh | latest | GitHub CLI devcontainer feature |
 
 ## Open it
