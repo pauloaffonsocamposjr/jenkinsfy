@@ -1,0 +1,8 @@
+workflow-aggregator
+pipeline-model-definition
+pipeline-stage-view
+git
+credentials-binding
+docker-workflow
+powershell
+pipeline-utility-steps

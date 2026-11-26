@@ -1,0 +1,70 @@
+# End-to-end sample for test/jenkins/verify.sh. Every step must pass on a
+# plain Linux Jenkins controller (runs-on is mapped to the built-in node).
+name: Sample
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      greeting:
+        description: Word used in the artifact
+        default: hello
+env:
+  APP: jenkinsfy-sample
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: test -f Jenkinsfile && echo "lint ok for $APP"
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Flaky step is tolerated
+        run: exit 1
+        continue-on-error: true
+      - run: echo "commit ${{ github.sha }} build ${{ github.run_number }}"
+  matrix:
+    needs: [lint, unit]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        flavor: [vanilla, chocolate]
+    steps:
+      - run: echo "flavor=${{ matrix.flavor }}"
+  build:
+    needs: matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        shell: bash
+        run: |
+          mkdir -p dist
+          # inputs.* is empty on push, so fall back like a real workflow would.
+          echo "${{ inputs.greeting || 'hello' }} from $APP" > dist/hello.txt
+          echo "secret length: ${#NPM_TOKEN}"
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - if: always()
+        run: echo "cleanup always runs"
+  check:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: got
+      # GitHub strips the uploaded directory, so the file lands at got/hello.txt.
+      # Same expression as the build step, so any greeting parameter passes.
+      - run: grep -qx "${{ inputs.greeting || 'hello' }} from jenkinsfy-sample" got/hello.txt
+      - if: github.ref_name == 'main'
+        run: echo "running on main"
+      - if: failure()
+        run: echo "check failed"
