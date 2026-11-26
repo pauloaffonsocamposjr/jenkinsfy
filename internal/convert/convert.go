@@ -434,7 +434,21 @@ func isSuccess(cond string) bool {
 	return strings.ReplaceAll(expr.Unwrap(cond), " ", "") == "success()"
 }
 
-var matrixRef = regexp.MustCompile(`^\$\{\{\s*matrix\.([\w-]+)\s*\}\}$`)
+var matrixRef = regexp.MustCompile(`\$\{\{\s*matrix\.([\w-]+)\s*\}\}`)
+
+// agentSegments interpolates a string used in an agent block (label or
+// image). Matrix axes are plain variables there, as in the Jenkins docs'
+// `label "${PLATFORM}-agent"`, so `${{ matrix.x }}` becomes `${x}`.
+func (c *converter) agentSegments(s string) []expr.Segment {
+	var segs []expr.Segment
+	last := 0
+	for _, loc := range matrixRef.FindAllStringSubmatchIndex(s, -1) {
+		segs = append(segs, c.tr.Interpolate(s[last:loc[0]], false)...)
+		segs = append(segs, expr.Segment{Text: expr.EnvName(s[loc[2]:loc[3]]), Groovy: true})
+		last = loc[1]
+	}
+	return append(segs, c.tr.Interpolate(s[last:], false)...)
+}
 
 func (c *converter) agent(w *writer, j *workflow.Job) {
 	if j.RunsOn.Group != "" {
@@ -445,16 +459,11 @@ func (c *converter) agent(w *writer, j *workflow.Job) {
 		if i > 0 {
 			segs = append(segs, expr.Segment{Text: " && "})
 		}
-		if m := matrixRef.FindStringSubmatch(l); m != nil {
-			// Matrix axes are plain variables inside a matrix agent block.
-			segs = append(segs, expr.Segment{Text: expr.EnvName(m[1]), Groovy: true})
-			if len(c.opts.LabelMap) > 0 {
+		if expr.HasExpression(l) {
+			if matrixRef.MatchString(l) && len(c.opts.LabelMap) > 0 {
 				c.warn("job %q: label map is not applied to matrix-driven runs-on %s", j.ID, l)
 			}
-			continue
-		}
-		if expr.HasExpression(l) {
-			segs = append(segs, c.tr.Interpolate(l, false)...)
+			segs = append(segs, c.agentSegments(l)...)
 			continue
 		}
 		if mapped, ok := c.opts.LabelMap[l]; ok {
@@ -470,7 +479,7 @@ func (c *converter) agent(w *writer, j *workflow.Job) {
 	if j.Container != nil && j.Container.Image != "" {
 		w.open("agent")
 		w.open("docker")
-		w.line("image %s", expr.GroovyString(c.tr.Interpolate(j.Container.Image, false)))
+		w.line("image %s", expr.GroovyString(c.agentSegments(j.Container.Image)))
 		if j.Container.Options != "" {
 			w.line("args %s", expr.QuoteString(j.Container.Options))
 		}

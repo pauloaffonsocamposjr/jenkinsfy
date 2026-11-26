@@ -1,0 +1,153 @@
+# CI/CD for jenkinsfy.
+#
+# This workflow is also the source of the repository's Jenkinsfile
+# (`make jenkinsfile`), so it sticks to constructs jenkinsfy converts
+# faithfully: jobs run in containers instead of actions/setup-*, and every
+# step calls a Makefile target.
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Writable locations in any container, whatever user it runs as
+  # (GitHub runs containers as root, Jenkins as the agent user).
+  GOPATH: /tmp/go
+  GOCACHE: /tmp/go-cache
+  GOLANGCI_LINT_CACHE: /tmp/golangci-lint-cache
+  GOTOOLCHAIN: local
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    container: golangci/golangci-lint:v2.15.0
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: gofmt
+        run: make fmt-check
+      - name: go vet
+        run: make vet
+      - name: golangci-lint
+        run: make golangci
+      - name: go.mod is tidy
+        run: make tidy-check
+      - name: actionlint
+        run: make actionlint
+      - name: Jenkinsfile matches this workflow
+        run: make jenkinsfile-check
+
+  test:
+    name: Test (Go ${{ matrix.go }})
+    runs-on: ubuntu-latest
+    container: golang:${{ matrix.go }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # Oldest supported (go.mod) and current.
+        go: ['1.22', '1.27']
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test with race detector and coverage
+        run: make cover
+      - name: Coverage summary
+        run: |
+          go tool cover -func=coverage.out | tail -n 1
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            {
+              echo "### Coverage (Go ${{ matrix.go }})"
+              echo '```'
+              go tool cover -func=coverage.out
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-go${{ matrix.go }}
+          path: |
+            coverage.out
+            coverage.html
+
+  build:
+    name: Build binaries
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    container: golang:1.27
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # tags, for the version stamped by git describe
+      - name: Cross-compile
+        run: make dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  e2e:
+    name: Jenkins end-to-end
+    needs: [lint, test]
+    # Needs Go and podman on the host (both preinstalled on GitHub's Ubuntu runners).
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tool versions
+        run: go version && podman version
+      - name: Lint and build converted pipelines on a real Jenkins
+        run: make e2e
+      - name: Upload Jenkins console log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jenkins-console
+          path: test/jenkins/last-console.txt
+          if-no-files-found: ignore
+
+  release:
+    name: Release
+    needs: [build, e2e]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Release notes from CHANGELOG.md
+        # Fails for tags that are not semantic versions or have no changelog entry.
+        run: make release-notes V="${{ github.ref_name }}" > release-notes.md
+      - name: Check binaries report the tag
+        run: |
+          chmod +x dist/jenkinsfy_* # artifacts do not keep file modes
+          out=$(./dist/jenkinsfy_*_linux_amd64 -version)
+          echo "$out"
+          [ "$out" = "jenkinsfy ${{ github.ref_name }}" ]
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          prerelease=""
+          case "${{ github.ref_name }}" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "${{ github.ref_name }}" dist/* \
+            --title "jenkinsfy ${{ github.ref_name }}" \
+            --notes-file release-notes.md --verify-tag $prerelease

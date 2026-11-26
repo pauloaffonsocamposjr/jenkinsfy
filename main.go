@@ -16,11 +16,28 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime/debug"
 	"strings"
 
 	"github.com/pauloaffonsocamposjr/jenkinsfy/internal/convert"
 	"github.com/pauloaffonsocamposjr/jenkinsfy/internal/workflow"
 )
+
+// version is set at release build time with -ldflags "-X main.version=...".
+// When empty, the module version recorded by `go install module@version` is
+// used, and "dev" for local builds.
+var version = ""
+
+// resolveVersion returns the version to report for this binary.
+func resolveVersion(ldflags string, info *debug.BuildInfo, ok bool) string {
+	if ldflags != "" {
+		return ldflags
+	}
+	if ok && info != nil && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+	return "dev"
+}
 
 type labelFlag map[string]string
 
@@ -45,6 +62,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	out := fs.String("o", "", "write the Jenkinsfile to `file` instead of stdout")
 	strict := fs.Bool("strict", false, "exit with status 2 if the conversion produced warnings")
 	quiet := fs.Bool("q", false, "do not print warnings")
+	showVersion := fs.Bool("version", false, "print the version and exit")
 	labels := labelFlag{}
 	fs.Var(labels, "label", "map a GitHub runner label to a Jenkins agent label, as `FROM=TO` (repeatable)")
 	fs.Usage = func() {
@@ -58,6 +76,11 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		}
 		return 1
 	}
+	if *showVersion {
+		info, ok := debug.ReadBuildInfo()
+		fmt.Fprintln(stdout, "jenkinsfy", resolveVersion(version, info, ok))
+		return 0
+	}
 	if fs.NArg() > 1 {
 		fs.Usage()
 		return 1
@@ -70,7 +93,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stderr, "jenkinsfy:", err)
 			return 1
 		}
-		defer f.Close()
+		defer f.Close() //nolint:errcheck // read-only file
 		in = f
 	}
 
@@ -90,8 +113,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stderr, "jenkinsfy:", err)
 			return 1
 		}
-	} else {
-		io.WriteString(stdout, res.Jenkinsfile)
+	} else if _, err := io.WriteString(stdout, res.Jenkinsfile); err != nil {
+		fmt.Fprintln(stderr, "jenkinsfy:", err)
+		return 1
 	}
 	if !*quiet {
 		for _, w := range res.Warnings {

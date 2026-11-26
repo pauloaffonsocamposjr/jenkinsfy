@@ -104,7 +104,7 @@ pipeline {
             }
             when {
                 beforeAgent true
-                expression { return ('refs/heads/' + env.BRANCH_NAME) == 'refs/heads/main' && params['dry-run'] != true }
+                expression { return (env.TAG_NAME ? 'refs/tags/' + env.TAG_NAME : 'refs/heads/' + env.BRANCH_NAME) == 'refs/heads/main' && params['dry-run'] != true }
             }
             steps {
                 dir('out') {

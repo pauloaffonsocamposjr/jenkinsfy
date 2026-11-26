@@ -69,7 +69,53 @@ and a warning.
 ```sh
 go test ./...
 go test ./internal/convert -update   # regenerate golden Jenkinsfiles in testdata/
+make lint        # gofmt, go vet, golangci-lint, go mod tidy, actionlint, Jenkinsfile freshness
+make cover       # tests with -race; fails below 80% coverage; writes coverage.html
+make dist        # cross-compile release binaries and SHA256SUMS into dist/
+make jenkinsfile # regenerate ./Jenkinsfile after editing .github/workflows/ci.yml
 ```
+
+### CI/CD
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on pushes to
+`main` and `dev`, on pull requests and on `v*` tags:
+
+| Job | What it does |
+| --- | --- |
+| Lint | `make lint` in `golangci/golangci-lint` |
+| Test | `make cover` on Go 1.22 (the go.mod minimum) and 1.27, uploading coverage reports |
+| Build binaries | `make dist` for linux, darwin and windows |
+| Jenkins end-to-end | `make e2e`: lints every generated Jenkinsfile and builds the sample on Jenkins in podman |
+| Release | for `v*` tags, publishes the binaries as a GitHub release |
+
+### Versioning and releases
+
+jenkinsfy follows [Semantic Versioning](https://semver.org). Releases are
+`vX.Y.Z` git tags (pre-releases look like `v1.0.0-rc.1`), and changes are
+recorded in [CHANGELOG.md](CHANGELOG.md) using the
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
+
+1. Add each change under `## [Unreleased]` in `CHANGELOG.md`, in the same PR.
+2. To release, run `make release V=0.2.0` on an up-to-date `main` branch. This
+   moves the Unreleased entries into `## [0.2.0] - <today>`, updates the
+   compare links, commits `Release v0.2.0`, and creates an annotated tag. It
+   doesn't push anything.
+3. Push with `git push origin main v0.2.0`. CI builds the binaries, checks
+   that they report `v0.2.0`, and publishes a GitHub release whose notes are
+   that changelog section (marked as a pre-release when the version has a
+   `-`). Tags without a changelog entry fail the release job.
+
+`jenkinsfy -version` prints the release version. It's stamped into release
+binaries and read from module info for `go install ...@vX.Y.Z`, and is `dev`
+for local builds.
+
+The repository's [`Jenkinsfile`](Jenkinsfile) is that same workflow converted
+by jenkinsfy (`make jenkinsfile`). The lint job fails if it gets out of date.
+To run it, use a Multibranch Pipeline and set up:
+
+- agents labelled `linux` with Docker, for the containerized stages;
+- `go`, `podman` and `make` on the agent that runs the end-to-end stage;
+- a secret-text credential `GITHUB_TOKEN` and tag discovery, for releases.
 
 ### Checking against a real Jenkins
 

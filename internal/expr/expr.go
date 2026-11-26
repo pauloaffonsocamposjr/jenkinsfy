@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -190,7 +191,11 @@ func (t *Translator) resolve(path []string) resolved {
 		}
 		return resolved{groovy: "params." + name, shell: "${" + name + "}"}
 	case full == "github.ref":
-		return resolved{groovy: "('refs/heads/' + env.BRANCH_NAME)", shell: "refs/heads/${BRANCH_NAME}"}
+		// Multibranch tag builds set TAG_NAME (and BRANCH_NAME to the tag).
+		// No shell form: it needs a conditional, so Groovy interpolates it.
+		return resolved{groovy: "(env.TAG_NAME ? 'refs/tags/' + env.TAG_NAME : 'refs/heads/' + env.BRANCH_NAME)"}
+	case full == "github.ref_type":
+		return resolved{groovy: "(env.TAG_NAME ? 'tag' : 'branch')"}
 	case full == "runner.os":
 		return resolved{groovy: "(isUnix() ? 'Linux' : 'Windows')"}
 	case full == "runner.temp":
@@ -377,9 +382,7 @@ func formatGString(format string, args []string) string {
 	last := 0
 	for _, loc := range placeholder.FindAllStringSubmatchIndex(format, -1) {
 		b.WriteString(EscapeGString(format[last:loc[0]]))
-		idx := 0
-		fmt.Sscanf(format[loc[2]:loc[3]], "%d", &idx)
-		if idx < len(args) {
+		if idx, err := strconv.Atoi(format[loc[2]:loc[3]]); err == nil && idx < len(args) {
 			b.WriteString("${" + args[idx] + "}")
 		}
 		last = loc[1]

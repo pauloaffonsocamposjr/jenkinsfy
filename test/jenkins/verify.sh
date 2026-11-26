@@ -71,6 +71,12 @@ cmd_lint() {
 	mkdir -p "$WORK/dump"
 	(cd "$ROOT" && JENKINSFY_DUMP_DIR="$WORK/dump" go test -count=1 ./internal/convert >/dev/null)
 	cp "$ROOT"/internal/convert/testdata/*.Jenkinsfile "$WORK/dump/"
+	# This repository's own pipeline, as committed and freshly converted.
+	[[ -f $ROOT/Jenkinsfile ]] && cp "$ROOT/Jenkinsfile" "$WORK/dump/repo-Jenkinsfile.Jenkinsfile"
+	for wf in "$ROOT"/.github/workflows/*.yml; do
+		[[ -e $wf ]] || continue
+		(cd "$ROOT" && go run . -q -o "$WORK/dump/workflow-$(basename "$wf" .yml).Jenkinsfile" "$wf")
+	done
 	local failed=0 total=0 out
 	for f in "$WORK"/dump/*.Jenkinsfile; do
 		total=$((total + 1))

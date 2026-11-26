@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"testing"
 )
@@ -77,6 +78,34 @@ func TestCLIWarningsAndStrict(t *testing.T) {
 	code, _, _ = runCLI(t, sample, "-strict")
 	if code != 0 {
 		t.Errorf("-strict without warnings: exit %d, want 0", code)
+	}
+}
+
+func TestCLIVersion(t *testing.T) {
+	code, out, _ := runCLI(t, "", "-version")
+	if code != 0 || out != "jenkinsfy dev\n" {
+		t.Errorf("exit %d, stdout %q; want 0 and %q", code, out, "jenkinsfy dev\n")
+	}
+}
+
+func TestResolveVersion(t *testing.T) {
+	tagged := &debug.BuildInfo{Main: debug.Module{Version: "v0.3.1"}}
+	devel := &debug.BuildInfo{Main: debug.Module{Version: "(devel)"}}
+	tests := []struct {
+		ldflags string
+		info    *debug.BuildInfo
+		ok      bool
+		want    string
+	}{
+		{"v1.2.3", tagged, true, "v1.2.3"}, // release builds win
+		{"", tagged, true, "v0.3.1"},       // go install module@v0.3.1
+		{"", devel, true, "dev"},           // go build in a checkout
+		{"", nil, false, "dev"},            // no build info
+	}
+	for _, tt := range tests {
+		if got := resolveVersion(tt.ldflags, tt.info, tt.ok); got != tt.want {
+			t.Errorf("resolveVersion(%q, %v, %v) = %q, want %q", tt.ldflags, tt.info, tt.ok, got, tt.want)
+		}
 	}
 }
 
