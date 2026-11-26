@@ -10,6 +10,8 @@ part of it.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-26
+
 ### Added
 
 - `jenkinsfy` command that converts a GitHub Actions workflow into a
@@ -30,4 +32,5 @@ part of it.
   binaries, Jenkins end-to-end check, tag-driven releases), and the
   repository `Jenkinsfile` generated from it.
 
-[Unreleased]: https://github.com/pauloaffonsocamposjr/jenkinsfy/compare/a959b1b...HEAD
+[Unreleased]: https://github.com/pauloaffonsocamposjr/jenkinsfy/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/pauloaffonsocamposjr/jenkinsfy/releases/tag/v0.1.0
