@@ -10,6 +10,8 @@ part of it.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-26
+
 ### Fixed
 
 - Release tags made by `make release` now have a `jenkinsfy vX.Y.Z` subject
@@ -38,5 +40,6 @@ part of it.
   binaries, Jenkins end-to-end check, tag-driven releases), and the
   repository `Jenkinsfile` generated from it.
 
-[Unreleased]: https://github.com/pauloaffonsocamposjr/jenkinsfy/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/pauloaffonsocamposjr/jenkinsfy/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/pauloaffonsocamposjr/jenkinsfy/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/pauloaffonsocamposjr/jenkinsfy/releases/tag/v0.1.0
