@@ -1,0 +1,16 @@
+version: "2"
+linters:
+  enable:
+    - gocritic
+    - misspell
+    - unconvert
+  settings:
+    errcheck:
+      # Diagnostics written to stderr have nowhere to report a failure.
+      exclude-functions:
+        - fmt.Fprintln
+        - fmt.Fprintf
+formatters:
+  enable:
+    - gofmt
+    - goimports

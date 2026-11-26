@@ -80,6 +80,13 @@ func TestCLIWarningsAndStrict(t *testing.T) {
 	}
 }
 
+func TestCLIVersion(t *testing.T) {
+	code, out, _ := runCLI(t, "", "-version")
+	if code != 0 || out != "jenkinsfy dev\n" {
+		t.Errorf("exit %d, stdout %q; want 0 and %q", code, out, "jenkinsfy dev\n")
+	}
+}
+
 func TestCLIErrors(t *testing.T) {
 	tests := []struct {
 		name  string

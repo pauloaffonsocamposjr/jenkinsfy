@@ -69,7 +69,32 @@ and a warning.
 ```sh
 go test ./...
 go test ./internal/convert -update   # regenerate golden Jenkinsfiles in testdata/
+make lint        # gofmt, go vet, golangci-lint, go mod tidy, actionlint, Jenkinsfile freshness
+make cover       # tests with -race; fails below 80% coverage; writes coverage.html
+make dist        # cross-compile release binaries and SHA256SUMS into dist/
+make jenkinsfile # regenerate ./Jenkinsfile after editing .github/workflows/ci.yml
 ```
+
+### CI/CD
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on pushes to
+`main` and `dev`, on pull requests and on `v*` tags:
+
+| Job | What it does |
+| --- | --- |
+| Lint | `make lint` in `golangci/golangci-lint` |
+| Test | `make cover` on Go 1.22 (the go.mod minimum) and 1.27, uploading coverage reports |
+| Build binaries | `make dist` for linux, darwin and windows |
+| Jenkins end-to-end | `make e2e`: lints every generated Jenkinsfile and builds the sample on Jenkins in podman |
+| Release | for `v*` tags, publishes the binaries as a GitHub release |
+
+The repository's [`Jenkinsfile`](Jenkinsfile) is that same workflow converted
+by jenkinsfy (`make jenkinsfile`). The lint job fails if it gets out of date.
+To run it, use a Multibranch Pipeline and set up:
+
+- agents labelled `linux` with Docker, for the containerized stages;
+- `go`, `podman` and `make` on the agent that runs the end-to-end stage;
+- a secret-text credential `GITHUB_TOKEN` and tag discovery, for releases.
 
 ### Checking against a real Jenkins
 

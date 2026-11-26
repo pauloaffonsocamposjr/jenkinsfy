@@ -22,6 +22,9 @@ import (
 	"github.com/pauloaffonsocamposjr/jenkinsfy/internal/workflow"
 )
 
+// version is set at build time with -ldflags "-X main.version=...".
+var version = "dev"
+
 type labelFlag map[string]string
 
 func (l labelFlag) String() string { return "" }
@@ -45,6 +48,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	out := fs.String("o", "", "write the Jenkinsfile to `file` instead of stdout")
 	strict := fs.Bool("strict", false, "exit with status 2 if the conversion produced warnings")
 	quiet := fs.Bool("q", false, "do not print warnings")
+	showVersion := fs.Bool("version", false, "print the version and exit")
 	labels := labelFlag{}
 	fs.Var(labels, "label", "map a GitHub runner label to a Jenkins agent label, as `FROM=TO` (repeatable)")
 	fs.Usage = func() {
@@ -58,6 +62,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		}
 		return 1
 	}
+	if *showVersion {
+		fmt.Fprintln(stdout, "jenkinsfy", version)
+		return 0
+	}
 	if fs.NArg() > 1 {
 		fs.Usage()
 		return 1
@@ -70,7 +78,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stderr, "jenkinsfy:", err)
 			return 1
 		}
-		defer f.Close()
+		defer f.Close() //nolint:errcheck // read-only file
 		in = f
 	}
 
@@ -90,8 +98,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stderr, "jenkinsfy:", err)
 			return 1
 		}
-	} else {
-		io.WriteString(stdout, res.Jenkinsfile)
+	} else if _, err := io.WriteString(stdout, res.Jenkinsfile); err != nil {
+		fmt.Fprintln(stderr, "jenkinsfy:", err)
+		return 1
 	}
 	if !*quiet {
 		for _, w := range res.Warnings {

@@ -10,7 +10,9 @@ func TestCondition(t *testing.T) {
 	tests := []struct {
 		in, want string
 	}{
-		{"github.ref == 'refs/heads/main'", "('refs/heads/' + env.BRANCH_NAME) == 'refs/heads/main'"},
+		{"github.ref == 'refs/heads/main'", "(env.TAG_NAME ? 'refs/tags/' + env.TAG_NAME : 'refs/heads/' + env.BRANCH_NAME) == 'refs/heads/main'"},
+		{"startsWith(github.ref, 'refs/tags/v')", "(env.TAG_NAME ? 'refs/tags/' + env.TAG_NAME : 'refs/heads/' + env.BRANCH_NAME).startsWith('refs/tags/v')"},
+		{"github.ref_type == 'tag'", "(env.TAG_NAME ? 'tag' : 'branch') == 'tag'"},
 		{"${{ github.ref_name == 'main' }}", "env.BRANCH_NAME == 'main'"},
 		{"success()", "currentBuild.currentResult == 'SUCCESS'"},
 		{"failure()", "currentBuild.currentResult == 'FAILURE'"},
@@ -151,7 +153,7 @@ func TestUnknownContextWarns(t *testing.T) {
 	if got != "env.GITHUB_EVENT_NAME == 'push'" {
 		t.Errorf("got %s", got)
 	}
-	tr.Condition("github.event_name == 'pull_request'") // same warning again
+	_, _ = tr.Condition("github.event_name == 'pull_request'") // same warning again
 	if w := tr.Warnings(); len(w) != 1 || !strings.Contains(w[0], "github.event_name") {
 		t.Errorf("warnings = %v, want one about github.event_name", w)
 	}
@@ -159,12 +161,12 @@ func TestUnknownContextWarns(t *testing.T) {
 
 func TestInterpolateShell(t *testing.T) {
 	tr := New()
-	segs := tr.Interpolate("echo ${{ github.sha }} on ${{ github.ref }} for ${{ inputs.target }}", true)
-	want := []Segment{{Text: "echo ${GIT_COMMIT} on refs/heads/${BRANCH_NAME} for ${target}"}}
+	segs := tr.Interpolate("echo ${{ github.sha }} on ${{ github.ref_name }} for ${{ inputs.target }}", true)
+	want := []Segment{{Text: "echo ${GIT_COMMIT} on ${BRANCH_NAME} for ${target}"}}
 	if !reflect.DeepEqual(segs, want) {
 		t.Errorf("segments = %+v, want %+v", segs, want)
 	}
-	if got := TripleQuoted(segs); got != "'''echo ${GIT_COMMIT} on refs/heads/${BRANCH_NAME} for ${target}'''" {
+	if got := TripleQuoted(segs); got != "'''echo ${GIT_COMMIT} on ${BRANCH_NAME} for ${target}'''" {
 		t.Errorf("TripleQuoted = %s", got)
 	}
 }

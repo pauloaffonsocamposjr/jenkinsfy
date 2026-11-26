@@ -252,7 +252,7 @@ func (p *parser) primary() (node, error) {
 			case p.isOp("."):
 				p.next()
 				id := p.next()
-				if id.kind != tIdent && !(id.kind == tOp && id.val == "*") {
+				if id.kind != tIdent && (id.kind != tOp || id.val != "*") {
 					return nil, fmt.Errorf("expected property name after '.'")
 				}
 				path = append(path, id.val)

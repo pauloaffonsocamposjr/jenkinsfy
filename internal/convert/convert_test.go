@@ -371,7 +371,7 @@ jobs:
         run: go mod download
 `, Options{})
 	assertContains(t, res.Jenkinsfile,
-		"script {\n                    if (('refs/heads/' + env.BRANCH_NAME) == 'refs/heads/main') {\n                        sh 'deploy'",
+		"script {\n                    if ((env.TAG_NAME ? 'refs/tags/' + env.TAG_NAME : 'refs/heads/' + env.BRANCH_NAME) == 'refs/heads/main') {\n                        sh 'deploy'",
 		"// TODO(jenkinsfy): translate condition: hashFiles('go.sum') != ''",
 		"if (false) {",
 	)
@@ -575,6 +575,21 @@ jobs:
 		"GOFLAGS = '-mod=mod'",
 	)
 	assertWarning(t, res, "service containers")
+}
+
+func TestMatrixContainerImage(t *testing.T) {
+	res := convert(t, `
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container: golang:${{ matrix.go }}-bookworm
+    strategy:
+      matrix:
+        go: ['1.22', '1.27']
+    steps: [{run: go test ./...}]
+`, Options{})
+	assertContains(t, res.Jenkinsfile, `image "golang:${go}-bookworm"`)
 }
 
 func TestPipelineDirectives(t *testing.T) {
